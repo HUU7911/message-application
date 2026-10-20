@@ -1,0 +1,14 @@
+package com.huumod.message.dto.request.notify;
+
+import lombok.*;
+import lombok.experimental.FieldDefaults;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@FieldDefaults(level = AccessLevel.PRIVATE)
+public class Receptor {
+    String name;
+    String email;
+}

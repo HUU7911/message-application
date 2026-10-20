@@ -1,0 +1,62 @@
+version: "3.8"
+services:
+  mongodb:
+    image: mongo:8.0.1-noble
+    container_name: mongodb
+    hostname: mongodb
+    restart: always
+    ports:
+      - '27017:27017'
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: huumod7911
+
+  kafka:
+    image: apache/kafka:3.8.0
+    restart: unless-stopped
+
+    ports:
+      - "9092:9092"
+
+    environment:
+      # Node
+      KAFKA_NODE_ID: 1
+
+      # KRaft
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+
+      # Listener
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+
+      # Cluster
+      KAFKA_CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+
+      # Topic
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+  mysql:
+    image: mysql:latest
+    container_name: shop-mysql
+    environment:
+      MYSQL_DATABASE: shop
+      MYSQL_USER: shop
+      MYSQL_PASSWORD: shop
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  kafka-data:
+  mysql_data:
