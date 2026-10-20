@@ -9,7 +9,7 @@ services:
       - '27017:27017'
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: huumod7911
+      MONGO_INITDB_ROOT_PASSWORD: 123456
 
   kafka:
     image: apache/kafka:3.8.0
@@ -48,10 +48,8 @@ services:
     image: mysql:latest
     container_name: shop-mysql
     environment:
-      MYSQL_DATABASE: shop
-      MYSQL_USER: shop
       MYSQL_PASSWORD: shop
-      MYSQL_ROOT_PASSWORD: root
+      MYSQL_ROOT_PASSWORD: 123456
     ports:
       - "3306:3306"
     volumes:
