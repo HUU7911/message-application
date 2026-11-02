@@ -1,103 +1,69 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
-import { authApi, userApi } from '../api';
-import { ApiError, onUnauthorized, setAuthToken } from '../api/http';
-import { clearImageCache } from '../api/media';
-import { TOKEN_KEY } from '../config';
-import type { User } from '../types';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { authApi, userApi } from "../api";
+import { setUnauthorizedHandler, tokenStore } from "../api/client";
+import { hasScope } from "../lib/jwt";
+import type { User } from "../types";
 
 interface AuthState {
   user: User | null;
   token: string | null;
   loading: boolean;
-  login: (username: string, password: string) => Promise<void>;
-  register: (username: string, email: string, password: string) => Promise<void>;
+  isAdmin: boolean;
+  login: (token: string) => Promise<void>;
   logout: () => Promise<void>;
-  updateUser: (user: User) => void;
+  setUser: (u: User) => void;
 }
 
-const AuthContext = createContext<AuthState | null>(null);
+const Ctx = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(tokenStore.get());
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState<boolean>(() => sessionStorage.getItem(TOKEN_KEY) !== null);
+  const [loading, setLoading] = useState<boolean>(!!tokenStore.get());
 
   const clear = useCallback(() => {
-    setAuthToken(null);
-    sessionStorage.removeItem(TOKEN_KEY);
-    clearImageCache();
+    tokenStore.clear();
     setToken(null);
     setUser(null);
   }, []);
 
-  // Token hết hạn / bị từ chối ở bất kỳ request nào thì đăng xuất.
-  useEffect(() => {
-    onUnauthorized(clear);
-    return () => onUnauthorized(null);
-  }, [clear]);
-
-  // Khôi phục phiên từ lần trước.
-  useEffect(() => {
-    const saved = sessionStorage.getItem(TOKEN_KEY);
-    if (!saved) return;
-    setAuthToken(saved);
-    userApi
-      .me()
-      .then((me) => {
-        setToken(saved);
-        setUser(me);
-      })
-      .catch(clear)
-      .finally(() => setLoading(false));
-  }, [clear]);
-
-  const login = useCallback(async (username: string, password: string) => {
-    const res = await authApi.login(username, password);
-    if (!res?.token || res.authenticated === false) {
-      throw new ApiError('Tên đăng nhập hoặc mật khẩu không đúng.', 401);
-    }
-    setAuthToken(res.token);
+  const login = useCallback(async (t: string) => {
+    tokenStore.set(t);
+    setToken(t);
     try {
-      const me = await userApi.me();
-      localStorage.setItem(TOKEN_KEY, res.token);
-      setToken(res.token);
-      setUser(me);
+      setUser(await userApi.me());
     } catch (e) {
-      setAuthToken(null);
+      clear();
       throw e;
     }
-  }, []);
-
-  const register = useCallback(
-    async (username: string, email: string, password: string) => {
-      await authApi.register(username, email, password);
-      await login(username, password);
-    },
-    [login],
-  );
+  }, [clear]);
 
   const logout = useCallback(async () => {
-    if (token) {
-      try {
-        await authApi.logout(token);
-      } catch {
-        // Token có thể đã hết hạn, vẫn xoá phiên ở máy này.
-      }
-    }
+    const t = tokenStore.get();
+    if (t) await authApi.logout(t).catch(() => undefined);
     clear();
-  }, [token, clear]);
+  }, [clear]);
 
-  const value = useMemo(
-    () => ({ user, token, loading, login, register, logout, updateUser: setUser }),
-    [user, token, loading, login, register, logout],
+  // Token hết hạn / bị thu hồi → backend trả 401 → đăng xuất
+  useEffect(() => {
+    setUnauthorizedHandler(clear);
+    return () => setUnauthorizedHandler(null);
+  }, [clear]);
+
+  useEffect(() => {
+    if (!tokenStore.get()) return;
+    userApi.me().then(setUser).catch(clear).finally(() => setLoading(false));
+  }, [clear]);
+
+  const value = useMemo<AuthState>(
+    () => ({ user, token, loading, isAdmin: hasScope(token, "ADMIN"), login, logout, setUser }),
+    [user, token, loading, login, logout],
   );
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
 export function useAuth(): AuthState {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth phải nằm trong <AuthProvider>');
-  return ctx;
+  const v = useContext(Ctx);
+  if (!v) throw new Error("useAuth phải nằm trong AuthProvider");
+  return v;
 }

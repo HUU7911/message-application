@@ -1,22 +1,7 @@
-// Khớp với các DTO trong backend (ApiResponse, ChatMessageResponse, ConversationResponse...)
-
 export interface ApiResponse<T> {
-  code: number; // 1000 = thành công
+  code: number;
   message?: string;
-  results?: T;
-}
-
-export interface AuthenticationResponse {
-  token: string;
-  authenticated: boolean;
-}
-
-export interface User {
-  id: string;
-  username: string;
-  email?: string;
-  avatar?: string | null;
-  createdAt?: string;
+  results: T;
 }
 
 export interface Participant {
@@ -25,14 +10,34 @@ export interface Participant {
   avatar?: string | null;
 }
 
+export interface Permission {
+  name: string;
+  description?: string;
+}
+
+export interface Role {
+  name: string;
+  description?: string;
+  permissions?: Permission[];
+}
+
+export interface User {
+  id: string;
+  username: string;
+  email?: string;
+  avatar?: string | null;
+  createdAt?: string;
+  roles?: Role[];
+}
+
 export interface Conversation {
   id: string;
   type?: string;
+  conversationName?: string;
   conversationAvatar?: string | null;
-  conversationName?: string | null;
   participants: Participant[];
-  createdAt?: string | number;
-  modifiedAt?: string | number;
+  createdAt?: string;
+  modifiedAt?: string;
 }
 
 export interface ChatMessage {
@@ -41,16 +46,5 @@ export interface ChatMessage {
   me: boolean;
   message: string;
   sender: Participant;
-  createdAt: string | number;
-}
-
-export type ConnectionStatus = 'connecting' | 'online' | 'offline';
-
-export interface ConversationItem {
-  id: string;
-  title: string;
-  avatar?: string | null;
-  preview: string;
-  time: number;
-  unread: number;
+  createdAt: string;
 }

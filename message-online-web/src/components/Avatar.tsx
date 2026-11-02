@@ -1,23 +1,27 @@
-import { useState } from 'react';
-import type { CSSProperties } from 'react';
-import { useProtectedImage } from '../hooks/useProtectedImage';
-import { hueFor, initials } from '../utils';
+import { useEffect, useState } from "react";
+import { loadMedia } from "../lib/media";
 
-interface Props {
-  name: string;
-  src?: string | null;
-  size?: number;
-}
+const hue = (s: string) => [...s].reduce((a, c) => (a * 31 + c.charCodeAt(0)) % 360, 7);
 
-export function Avatar({ name, src, size = 40 }: Props) {
-  const url = useProtectedImage(src);
-  const [failedUrl, setFailedUrl] = useState<string | null>(null);
-  const showImage = !!url && failedUrl !== url;
-  const style = { width: size, height: size, fontSize: size * 0.38, '--hue': hueFor(name) } as CSSProperties;
+export default function Avatar({ src, name, size = 40 }: { src?: string | null; name?: string; size?: number }) {
+  const [url, setUrl] = useState<string | null>(null);
 
-  return (
-    <span className="avatar" style={style} aria-hidden="true">
-      {showImage ? <img src={url} alt="" onError={() => setFailedUrl(url)} /> : initials(name)}
+  useEffect(() => {
+    let alive = true;
+    setUrl(null);
+    if (!src) return;
+    // Ảnh ngoài (vd. avatar Google) dùng trực tiếp, ảnh của backend phải tải kèm token
+    if (!src.includes("/media/download/")) { setUrl(src); return; }
+    loadMedia(src).then((u) => alive && setUrl(u)).catch(() => undefined);
+    return () => { alive = false; };
+  }, [src]);
+
+  const label = (name ?? "?").trim().charAt(0).toUpperCase() || "?";
+  return url ? (
+    <img className="avatar" src={url} alt={name} style={{ width: size, height: size }} referrerPolicy="no-referrer" />
+  ) : (
+    <span className="avatar" style={{ width: size, height: size, fontSize: size * 0.42, background: `hsl(${hue(name ?? "?")} 45% 42%)` }}>
+      {label}
     </span>
   );
 }

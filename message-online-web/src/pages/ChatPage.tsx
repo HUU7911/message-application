@@ -1,95 +1,175 @@
-import { useMemo, useState } from 'react';
-import { ProfileDialog } from '../components/ProfileDialog';
-import { Sidebar } from '../components/Sidebar';
-import { ThreadView } from '../components/ThreadView';
-import { useAuth } from '../context/AuthContext';
-import { useChat } from '../hooks/useChat';
-import type { ConversationItem, User } from '../types';
-import { conversationTitle, toMillis } from '../utils';
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
+import { chatApi, userApi } from "../api";
+import Avatar from "../components/Avatar";
+import { useAuth } from "../context/AuthContext";
+import { createSocket } from "../lib/socket";
+import type { ChatMessage, Conversation, User } from "../types";
 
-interface Props {
-  token: string;
-  me: User;
-}
+const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+const day = (iso: string) => new Date(iso).toLocaleDateString("vi-VN", { weekday: "long", day: "numeric", month: "numeric" });
 
-export function ChatPage({ token, me }: Props) {
-  const { logout, updateUser } = useAuth();
-  const [profileOpen, setProfileOpen] = useState(false);
-  const chat = useChat(token, me);
+export default function ChatPage() {
+  const { user, token, isAdmin, logout } = useAuth();
+  const [convs, setConvs] = useState<Conversation[]>([]);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [msgs, setMsgs] = useState<Record<string, ChatMessage[]>>({});
+  const [last, setLast] = useState<Record<string, ChatMessage>>({});
+  const [unread, setUnread] = useState<Record<string, number>>({});
+  const [online, setOnline] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [keyword, setKeyword] = useState("");
+  const [found, setFound] = useState<User[]>([]);
+  const [error, setError] = useState("");
+  const bottom = useRef<HTMLDivElement>(null);
+  const activeRef = useRef<string | null>(null);
+  const convsRef = useRef<Conversation[]>([]);
+  activeRef.current = activeId;
+  convsRef.current = convs;
 
-  const items = useMemo<ConversationItem[]>(
-    () =>
-      chat.conversations
-        .map((c) => {
-          const list = chat.messages[c.id];
-          const last = list?.[list.length - 1];
-          const other = c.participants.find((p) => p.id !== me.id);
-          return {
-            id: c.id,
-            title: conversationTitle(c, me.id),
-            avatar: c.conversationAvatar ?? other?.avatar ?? null,
-            preview: last ? `${last.sender?.id === me.id ? 'Bạn: ' : ''}${last.message}` : '',
-            time: last ? toMillis(last.createdAt) : toMillis(c.modifiedAt ?? c.createdAt),
-            unread: chat.unread[c.id] ?? 0,
-          };
-        })
-        .sort((a, b) => b.time - a.time),
-    [chat.conversations, chat.messages, chat.unread, me.id],
-  );
+  const reloadConvs = useCallback(() => chatApi.conversations().then(setConvs).catch((e: Error) => setError(e.message)), []);
+  useEffect(() => { void reloadConvs(); }, [reloadConvs]);
 
-  const active = chat.conversations.find((c) => c.id === chat.activeId) ?? null;
-  const activeItem = items.find((i) => i.id === chat.activeId) ?? null;
+  // Thêm tin nhắn (từ socket hoặc từ response khi gửi); bỏ qua nếu đã có (cùng id)
+  const pushMessage = useCallback((m: ChatMessage) => {
+    setMsgs((prev) => {
+      const list = prev[m.conversationId];
+      if (!list || list.some((x) => x.id === m.id)) return prev;
+      return { ...prev, [m.conversationId]: [...list, m] };
+    });
+    setLast((p) => ({ ...p, [m.conversationId]: m }));
+    if (!m.me && activeRef.current !== m.conversationId)
+      setUnread((p) => ({ ...p, [m.conversationId]: (p[m.conversationId] ?? 0) + 1 }));
+    if (!convsRef.current.some((c) => c.id === m.conversationId)) void reloadConvs();
+  }, [reloadConvs]);
+
+  // Kết nối Socket.IO. Lưu ý: `me` trong payload socket luôn là true (backend tính theo người gửi),
+  // nên phải tự so sánh sender.id với user hiện tại.
+  useEffect(() => {
+    if (!token || !user) return;
+    const s = createSocket(token);
+    s.on("connect", () => setOnline(true));
+    s.on("disconnect", () => setOnline(false));
+    s.on("message", (raw: ChatMessage) => pushMessage({ ...raw, me: raw.sender?.id === user.id }));
+    return () => { s.disconnect(); };
+  }, [token, user, pushMessage]);
+
+  // Tải lịch sử khi mở một cuộc trò chuyện
+  useEffect(() => {
+    if (!activeId || msgs[activeId]) return;
+    chatApi.messages(activeId).then((list) => {
+      setMsgs((p) => ({ ...p, [activeId]: list }));
+      if (list.length) setLast((p) => ({ ...p, [activeId]: list[list.length - 1] }));
+    }).catch((e: Error) => setError(e.message));
+  }, [activeId, msgs]);
+
+  useEffect(() => { bottom.current?.scrollIntoView({ block: "end" }); }, [activeId, msgs]);
+
+  // Tìm người dùng (debounce)
+  useEffect(() => {
+    const k = keyword.trim();
+    if (!k) { setFound([]); return; }
+    const t = setTimeout(() => userApi.search(k).then(setFound).catch(() => setFound([])), 300);
+    return () => clearTimeout(t);
+  }, [keyword]);
+
+  const open = (id: string) => { setActiveId(id); setUnread((p) => ({ ...p, [id]: 0 })); setError(""); };
+
+  async function startChat(u: User) {
+    try {
+      const c = await chatApi.create(u.id);
+      setConvs((p) => (p.some((x) => x.id === c.id) ? p : [c, ...p]));
+      setKeyword(""); setFound([]);
+      open(c.id);
+    } catch (e) { setError(e instanceof Error ? e.message : "Không tạo được cuộc trò chuyện"); }
+  }
+
+  async function send() {
+    const text = draft.trim();
+    if (!text || !activeId) return;
+    setDraft("");
+    try {
+      pushMessage({ ...(await chatApi.send(activeId, text)), me: true });
+    } catch (e) {
+      setDraft(text);
+      setError(e instanceof Error ? e.message : "Không gửi được tin nhắn");
+    }
+  }
+
+  const sorted = useMemo(() => {
+    const t = (c: Conversation) => last[c.id]?.createdAt ?? c.modifiedAt ?? "";
+    return [...convs].sort((a, b) => t(b).localeCompare(t(a)));
+  }, [convs, last]);
+
+  const active = convs.find((c) => c.id === activeId);
+  const list = activeId ? msgs[activeId] : undefined;
 
   return (
-    <div className="app" data-view={active ? 'thread' : 'list'}>
-      <Sidebar
-        me={me}
-        items={items}
-        activeId={chat.activeId}
-        status={chat.status}
-        onSelect={chat.selectConversation}
-        onStartChat={chat.startChat}
-        onLogout={() => void logout()}
-        onOpenProfile={() => setProfileOpen(true)}
-      />
+    <div className={`chat ${activeId ? "has-active" : ""}`}>
+      <aside className="side">
+        <header className="side-head">
+          <Link to="/profile" className="me" title="Hồ sơ">
+            <Avatar src={user?.avatar} name={user?.username} size={36} />
+            <span>{user?.username}</span>
+          </Link>
+          <span className={online ? "dot on" : "dot"} title={online ? "Đã kết nối realtime" : "Mất kết nối realtime"} />
+          {isAdmin && <Link to="/admin" className="link">Quản trị</Link>}
+          <button className="link" onClick={() => logout()}>Đăng xuất</button>
+        </header>
 
-      <main className="stage">
-        {chat.status === 'offline' && (
-          <div className="banner" role="status">
-            Mất kết nối realtime. Tin mới có thể không hiện ngay. Kiểm tra Socket.IO ở cổng 8099 hoặc tải lại trang.
-          </div>
-        )}
+        <input className="search" placeholder="Tìm người để nhắn tin" value={keyword} onChange={(e) => setKeyword(e.target.value)} />
 
-        {active && activeItem ? (
-          <ThreadView
-            key={active.id}
-            title={activeItem.title}
-            avatar={activeItem.avatar}
-            memberCount={active.participants.length}
-            messages={chat.messages[active.id] ?? []}
-            meId={me.id}
-            loading={chat.loadingMessages}
-            onSend={chat.send}
-            onBack={chat.closeConversation}
-          />
+        <ul className="convs">
+          {keyword.trim() ? (
+            found.length ? found.map((u) => (
+              <li key={u.id}><button onClick={() => startChat(u)}><Avatar src={u.avatar} name={u.username} /><b>{u.username}</b></button></li>
+            )) : <li className="muted pad">Không tìm thấy người dùng</li>
+          ) : sorted.length ? sorted.map((c) => (
+            <li key={c.id}>
+              <button className={c.id === activeId ? "on" : ""} onClick={() => open(c.id)}>
+                <Avatar src={c.conversationAvatar} name={c.conversationName} />
+                <span className="meta">
+                  <b>{c.conversationName}</b>
+                  <small>{last[c.id] ? `${last[c.id].me ? "Bạn: " : ""}${last[c.id].message}` : ""}</small>
+                </span>
+                {!!unread[c.id] && <span className="badge">{unread[c.id]}</span>}
+              </button>
+            </li>
+          )) : <li className="muted pad">Chưa có cuộc trò chuyện. Tìm một người ở ô phía trên để bắt đầu.</li>}
+        </ul>
+      </aside>
+
+      <section className="thread">
+        {active ? (
+          <>
+            <header className="thread-head">
+              <button className="link back-btn" onClick={() => setActiveId(null)}>←</button>
+              <Avatar src={active.conversationAvatar} name={active.conversationName} size={36} />
+              <b>{active.conversationName}</b>
+            </header>
+            <div className="messages">
+              {!list ? <p className="muted center">Đang tải tin nhắn…</p> : !list.length ? <p className="muted center">Chưa có tin nhắn. Hãy gửi lời chào.</p> : list.map((m, i) => (
+                <div key={m.id}>
+                  {(i === 0 || day(list[i - 1].createdAt) !== day(m.createdAt)) && <div className="day">{day(m.createdAt)}</div>}
+                  <div className={m.me ? "msg me" : "msg"}>
+                    {!m.me && <Avatar src={m.sender.avatar} name={m.sender.username} size={28} />}
+                    <div className="bubble">{m.message}<time>{hhmm(m.createdAt)}</time></div>
+                  </div>
+                </div>
+              ))}
+              <div ref={bottom} />
+            </div>
+            {error && <p className="error pad" role="alert">{error}</p>}
+            <form className="composer" onSubmit={(e) => { e.preventDefault(); void send(); }}>
+              <textarea rows={1} value={draft} placeholder="Nhập tin nhắn…" onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); void send(); } }} />
+              <button className="btn primary" disabled={!draft.trim()}>Gửi</button>
+            </form>
+          </>
         ) : (
-          <div className="stage__empty">
-            <h2>Chọn một cuộc trò chuyện</h2>
-            <p>Hoặc gõ tên vào ô tìm kiếm bên trái để nhắn cho người mới.</p>
-          </div>
+          <div className="center muted empty">Chọn một cuộc trò chuyện hoặc tìm người để bắt đầu nhắn tin.</div>
         )}
-
-        {chat.error && (
-          <div className="toast" role="alert">
-            <span>{chat.error}</span>
-            <button type="button" onClick={chat.dismissError} aria-label="Đóng thông báo">
-              Đóng
-            </button>
-          </div>
-        )}
-      </main>
-
-      {profileOpen && <ProfileDialog user={me} onClose={() => setProfileOpen(false)} onUpdated={updateUser} />}
+      </section>
     </div>
   );
 }
