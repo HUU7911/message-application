@@ -1,8 +1,8 @@
 package com.huumod.message.controller.chatcontroller;
 
 import com.huumod.message.dto.ApiResponse;
-import com.huumod.message.dto.request.chatrequest.ConversationRequest;
-import com.huumod.message.dto.response.chatresponse.ConversationResponse;
+import com.huumod.message.dto.request.chat.ConversationRequest;
+import com.huumod.message.dto.response.chat.ConversationResponse;
 import com.huumod.message.service.chatservice.ConversationService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

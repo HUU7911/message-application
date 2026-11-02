@@ -1,10 +1,10 @@
 package com.huumod.message.controller.identity;
 
 import com.huumod.message.dto.ApiResponse;
-import com.huumod.message.dto.request.userrequest.SearchUserRequest;
-import com.huumod.message.dto.request.userrequest.UserCreationRequest;
-import com.huumod.message.dto.request.userrequest.UserUpdateRequest;
-import com.huumod.message.dto.response.userresponse.UserResponse;
+import com.huumod.message.dto.request.user.SearchUserRequest;
+import com.huumod.message.dto.request.user.UserCreationRequest;
+import com.huumod.message.dto.request.user.UserUpdateRequest;
+import com.huumod.message.dto.response.user.UserResponse;
 import com.huumod.message.service.identityservice.UserService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;

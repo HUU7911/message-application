@@ -1,4 +1,4 @@
-package com.huumod.message.dto.request.chatrequest;
+package com.huumod.message.dto.request.chat;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;

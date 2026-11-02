@@ -2,8 +2,8 @@ package com.huumod.message.service.chatservice;
 
 import com.corundumstudio.socketio.SocketIOServer;
 import tools.jackson.core.type.TypeReference;
-import com.huumod.message.dto.request.chatrequest.ChatMessageRequest;
-import com.huumod.message.dto.response.chatresponse.ChatMessageResponse;
+import com.huumod.message.dto.request.chat.ChatMessageRequest;
+import com.huumod.message.dto.response.chat.ChatMessageResponse;
 import com.huumod.message.entity.chat.ChatMessage;
 import com.huumod.message.entity.chat.ParticipantInfo;
 import com.huumod.message.exception.AppException;

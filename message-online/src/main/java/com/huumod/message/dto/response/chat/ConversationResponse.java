@@ -1,10 +1,11 @@
-package com.huumod.message.dto.response.chatresponse;
+package com.huumod.message.dto.response.chat;
 
 import com.huumod.message.entity.chat.ParticipantInfo;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.Instant;
+import java.util.List;
 
 @Getter
 @Setter
@@ -12,12 +13,12 @@ import java.time.Instant;
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class ChatMessageResponse {
-
+public class ConversationResponse {
     String id;
-    String conversationId;
-    boolean me;
-    String message;
-    ParticipantInfo sender;
+    String type;
+    String conversationAvatar;
+    String conversationName;
+    List<ParticipantInfo> participants;
     Instant createdAt;
+    Instant modifiedAt;
 }

@@ -1,4 +1,4 @@
-package com.huumod.message.dto.response.userresponse;
+package com.huumod.message.dto.response.user;
 
 import com.huumod.message.entity.auth.Role;
 import jakarta.persistence.FetchType;

@@ -2,8 +2,8 @@ package com.huumod.message.controller.chatcontroller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.huumod.message.dto.ApiResponse;
-import com.huumod.message.dto.request.chatrequest.ChatMessageRequest;
-import com.huumod.message.dto.response.chatresponse.ChatMessageResponse;
+import com.huumod.message.dto.request.chat.ChatMessageRequest;
+import com.huumod.message.dto.response.chat.ChatMessageResponse;
 import com.huumod.message.service.chatservice.ChatService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;

@@ -1,8 +1,8 @@
 package com.huumod.message.service.chatservice;
 
 import com.corundumstudio.socketio.SocketIOServer;
-import com.huumod.message.dto.request.chatrequest.ConversationRequest;
-import com.huumod.message.dto.response.chatresponse.ConversationResponse;
+import com.huumod.message.dto.request.chat.ConversationRequest;
+import com.huumod.message.dto.response.chat.ConversationResponse;
 import com.huumod.message.entity.chat.Conversation;
 import com.huumod.message.entity.chat.ParticipantInfo;
 import com.huumod.message.mapper.ConversationMapper;

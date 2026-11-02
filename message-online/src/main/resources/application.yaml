@@ -47,3 +47,9 @@ app:
   config:
     url-prefix: http://localhost:8080/message/file/media/download/
     store-located: ./upload
+
+outbound:
+  identity:
+    client-id: ${CLIENT_ID}
+    client-secret: ${CLIENT_SECRET}
+    redirect-uri: ${REDIRECT_URL}

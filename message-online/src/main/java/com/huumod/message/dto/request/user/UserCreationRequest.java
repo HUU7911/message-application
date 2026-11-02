@@ -1,4 +1,4 @@
-package com.huumod.message.dto.request.userrequest;
+package com.huumod.message.dto.request.user;
 
 import com.huumod.message.entity.auth.Role;
 import jakarta.persistence.*;

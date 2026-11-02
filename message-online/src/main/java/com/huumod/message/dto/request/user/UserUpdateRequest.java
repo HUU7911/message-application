@@ -1,4 +1,4 @@
-package com.huumod.message.dto.request.userrequest;
+package com.huumod.message.dto.request.user;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -8,6 +8,9 @@ import lombok.experimental.FieldDefaults;
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class SearchUserRequest {
-    String keyword;
+public class UserUpdateRequest {
+
+    String username;
+    String password;
+    String email;
 }

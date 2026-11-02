@@ -1,8 +1,8 @@
 package com.huumod.message.mapper;
 
-import com.huumod.message.dto.request.userrequest.UserCreationRequest;
-import com.huumod.message.dto.request.userrequest.UserUpdateRequest;
-import com.huumod.message.dto.response.userresponse.UserResponse;
+import com.huumod.message.dto.request.user.UserCreationRequest;
+import com.huumod.message.dto.request.user.UserUpdateRequest;
+import com.huumod.message.dto.response.user.UserResponse;
 import com.huumod.message.entity.auth.User;
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingTarget;

@@ -27,7 +27,8 @@ public class SecurityConfig {
     private final String[] PUBLIC_ENDPOINT = {
             "/users/create",
             "/auth/login",
-            "/users/avatar"
+            "/users/avatar",
+            "/outbound/identity"
     };
 
     @NonFinal

@@ -1,11 +1,11 @@
 package com.huumod.message.service.identityservice;
 
-import com.huumod.message.dto.request.userrequest.UserUpdateRequest;
+import com.huumod.message.dto.request.user.UserUpdateRequest;
 import com.huumod.event.dto.NotificationEvent;
 import com.huumod.message.constants.RoleDefine;
-import com.huumod.message.dto.request.userrequest.SearchUserRequest;
-import com.huumod.message.dto.request.userrequest.UserCreationRequest;
-import com.huumod.message.dto.response.userresponse.UserResponse;
+import com.huumod.message.dto.request.user.SearchUserRequest;
+import com.huumod.message.dto.request.user.UserCreationRequest;
+import com.huumod.message.dto.response.user.UserResponse;
 import com.huumod.message.entity.auth.Role;
 import com.huumod.message.entity.auth.User;
 import com.huumod.message.exception.AppException;

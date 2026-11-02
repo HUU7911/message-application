@@ -1,15 +1,21 @@
 package com.huumod.message.service.identityservice;
 
+import com.huumod.message.constants.RoleDefine;
 import com.huumod.message.dto.request.auth.AuthenticationRequest;
+import com.huumod.message.dto.request.auth.ExchangeTokenRequest;
 import com.huumod.message.dto.request.auth.IntrospectRequest;
 import com.huumod.message.dto.request.auth.LogoutRequest;
 import com.huumod.message.dto.response.auth.AuthenticationResponse;
 import com.huumod.message.dto.response.auth.IntrospectResponse;
 import com.huumod.message.entity.auth.InvalidatedToken;
+import com.huumod.message.entity.auth.Role;
 import com.huumod.message.entity.auth.User;
 import com.huumod.message.exception.AppException;
 import com.huumod.message.exception.ErrorCode;
+import com.huumod.message.repository.httpclient.OutboundIdentityClient;
+import com.huumod.message.repository.httpclient.OutboundUserClient;
 import com.huumod.message.repository.mysql.InvalidatedRepository;
+import com.huumod.message.repository.mysql.RoleRepository;
 import com.huumod.message.repository.mysql.UserRepository;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
@@ -29,10 +35,7 @@ import org.springframework.util.CollectionUtils;
 import java.text.ParseException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Date;
-import java.util.Objects;
-import java.util.StringJoiner;
-import java.util.UUID;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -43,6 +46,9 @@ public class AuthenticationService {
     UserRepository userRepository;
     PasswordEncoder passwordEncoder;
     InvalidatedRepository invalidatedRepository;
+    OutboundIdentityClient outboundIdentityClient;
+    OutboundUserClient outboundUserClient;
+    RoleRepository roleRepository;
 
     @NonFinal
     @Value("${jwt.signerKey}")
@@ -55,6 +61,21 @@ public class AuthenticationService {
     @NonFinal
     @Value("${jwt.refreshable-duration}")
     protected long REFRESHABLE_DURATION;
+
+    @NonFinal
+    @Value("${outbound.identity.client-id}")
+    protected String CLIENT_ID;
+
+    @NonFinal
+    @Value("${outbound.identity.client-secret}")
+    protected String CLIENT_SECRET;
+
+    @NonFinal
+    @Value("${outbound.identity.redirect-uri}")
+    protected String REDIRECT_URI;
+
+    @NonFinal
+    private static final String GRANT_TYPE = "authorization_code";
 
     public IntrospectResponse introspect(IntrospectRequest request) throws JOSEException, ParseException {
         var token = request.getToken();
@@ -91,6 +112,39 @@ public class AuthenticationService {
                 .authenticated(true)
                 .build();
 
+    }
+
+    public AuthenticationResponse outboundIdentity(String code) {
+        var response = outboundIdentityClient.token(ExchangeTokenRequest.builder()
+                        .code(code)
+                        .clientId(CLIENT_ID)
+                        .clientSecret(CLIENT_SECRET)
+                        .redirectUri(REDIRECT_URI)
+                        .grantType(GRANT_TYPE)
+                .build());
+
+        var userInfor = outboundUserClient.getUserInfor("json", response.getAccessToken());
+
+        var user = userRepository.findByEmail(userInfor.getEmail())
+                .orElse(null);
+
+        if (Objects.isNull(user)) {
+            Set<Role> roles = new HashSet<>();
+            roles.add(roleRepository.findById(RoleDefine.USER.name()).orElse(null));
+            user = userRepository.save(User.builder()
+                            .username(userInfor.getName())
+                            .password(passwordEncoder.encode("password"))
+                            .createdAt(Instant.now())
+                            .roles(roles)
+                            .avatar(userInfor.getPicture())
+                    .build());
+        }
+
+        var token = generateToken(user);
+
+        return AuthenticationResponse.builder()
+                .token(token)
+                .build();
     }
 
     public void logout(LogoutRequest request) throws ParseException, JOSEException {
