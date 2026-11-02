@@ -28,7 +28,7 @@ public class SecurityConfig {
             "/users/create",
             "/auth/login",
             "/users/avatar",
-            "/outbound/identity"
+            "/auth/outbound/identity"
     };
 
     @NonFinal

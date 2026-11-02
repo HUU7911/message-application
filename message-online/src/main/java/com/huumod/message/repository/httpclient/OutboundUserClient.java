@@ -5,7 +5,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-@FeignClient(name = "outbound-identity", url = "https://oauth2.googleapis.com")
+@FeignClient(name = "outbound-user-client", url = "https://oauth2.googleapis.com")
 public interface OutboundUserClient {
     @PostMapping(value = "/oauth2/v2/infor")
     OutboundUserResponse getUserInfor(@RequestParam("alt") String alt,
